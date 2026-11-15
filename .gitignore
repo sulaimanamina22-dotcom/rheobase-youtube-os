@@ -1,0 +1,10 @@
+.claude/
+.venv*/
+.models/
+episodes/
+outputs/
+archive/
+tools/
+*.mp4
+*.wav
+.env

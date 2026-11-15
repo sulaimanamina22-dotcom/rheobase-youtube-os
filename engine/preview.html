@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rheobase preview</title>
+<style>
+  body{margin:0;background:#111;color:#ddd;font:14px system-ui,sans-serif}
+  #wrap{max-width:1280px;margin:0 auto;padding:12px}
+  canvas{width:100%;height:auto;display:block;background:#000}
+  .row{display:flex;gap:10px;align-items:center;margin-top:8px}
+  input[type=range]{flex:1}
+  button{background:#333;color:#eee;border:1px solid #555;padding:6px 12px;border-radius:4px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="1920" height="1080"></canvas>
+  <div class="row">
+    <button id="play">Play</button>
+    <input id="scrub" type="range" min="0" max="70" step="0.0333" value="0">
+    <span id="tc">0.00</span>
+  </div>
+  <div class="row"><span>Usage: preview.html?ep=../episodes/&lt;slug&gt;/build&amp;audio=../episodes/&lt;slug&gt;/audio/narration.wav</span></div>
+</div>
+<script src="core.js"></script>
+<script>
+// Scrub any moment, or play with the narration. Playback here is only for review;
+// the exporter renders exact frames independently of real time.
+(async function () {
+  const q = new URLSearchParams(location.search), ep = q.get('ep');
+  const load = (src) => new Promise((ok) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ok; document.body.appendChild(s); });
+  ENG.buildTextures();
+  for (const f of ['motion', 'light', 'line', 'finish', 'planets', 'character', 'fx', 'env']) await load('look/' + f + '.js');
+  { const epb = ep.replace(/\/?$/, '/'); await load(epb + 'subjects.js'); await load(epb + 'sections/index.js');
+    for (const f of (window.SECTION_FILES || [])) await load(epb + 'sections/' + f); await load(epb + 'scenes.js'); }
+  const ctx = document.getElementById('c').getContext('2d'), scrub = document.getElementById('scrub'), tc = document.getElementById('tc');
+  scrub.max = EPISODE.duration;
+  const audio = q.get('audio') ? new Audio(q.get('audio')) : null;
+  let playing = false, t = 0, t0 = 0, wall = 0;
+  const draw = () => { ctx.setTransform(1, 0, 0, 1, 0, 0); EPISODE.render(ctx, t); tc.textContent = t.toFixed(2); scrub.value = t; };
+  scrub.oninput = () => { t = +scrub.value; if (audio) audio.currentTime = t; draw(); };
+  document.getElementById('play').onclick = () => {
+    playing = !playing; t0 = t; wall = performance.now();
+    if (audio) { audio.currentTime = t; playing ? audio.play() : audio.pause(); }
+    document.getElementById('play').textContent = playing ? 'Pause' : 'Play';
+  };
+  (function loop() { if (playing) { t = audio ? audio.currentTime : t0 + (performance.now() - wall) / 1000; if (t >= EPISODE.duration) playing = false; draw(); } requestAnimationFrame(loop); })();
+  draw();
+})();
+</script>
+</body>
+</html>

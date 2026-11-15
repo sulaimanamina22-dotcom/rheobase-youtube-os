@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rheobase render</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script src="core.js"></script>
+<script>
+// Usage: render.html?ep=<folder with subjects.js, scenes.js, score.js relative to this page>
+// Exposes: window.ready (Promise), renderAt(t), frameJPEG(t, q), DURATION, renderScoreWAV() (base64)
+(function () {
+  const ep = new URLSearchParams(location.search).get('ep');
+  const files = ['subjects.js', 'scenes.js', 'score.js'];
+  const ctx = document.getElementById('c').getContext('2d');
+  function load(src) { return new Promise((ok) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ok(); document.body.appendChild(s); }); }
+  window.ready = (async () => {
+    ENG.buildTextures();
+    for (const f of files) await load(ep.replace(/\/?$/, '/') + f);
+    window.DURATION = EPISODE.duration;
+    return true;
+  })();
+  window.renderAt = (t) => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 1920, 1080); EPISODE.render(ctx, t); };
+  window.frameJPEG = (t, q = 0.93) => { renderAt(t); return document.getElementById('c').toDataURL('image/jpeg', q).slice(23); };
+})();
+</script>
+</body>
+</html>

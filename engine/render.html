@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rheobase render</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script src="core.js"></script>
+<script>
+// Usage: render.html?ep=<folder with subjects.js, scenes.js, score.js relative to this page>
+// Exposes: window.ready (Promise), renderAt(t), frameJPEG(t, q), DURATION, renderScoreWAV() (base64)
+(function () {
+  const ep = new URLSearchParams(location.search).get('ep');
+  const files = ['subjects.js', 'scenes.js', 'score.js'];
+  // Never let an effect that shrinks past zero throw: negative circle sizes draw nothing.
+  { const P = CanvasRenderingContext2D.prototype, arc0 = P.arc, ell0 = P.ellipse;
+    P.arc = function (x, y, r, a, b, c) { return arc0.call(this, x, y, Math.max(0, r), a, b, c); };
+    P.ellipse = function (x, y, rx, ry, rot, a, b, c) { return ell0.call(this, x, y, Math.max(0, rx), Math.max(0, ry), rot, a, b, c); }; }
+  const ctx = document.getElementById('c').getContext('2d');
+  function load(src) { return new Promise((ok) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ok(); document.body.appendChild(s); }); }
+  window.ready = (async () => {
+    ENG.buildTextures();
+    // shared look libraries (premium look, Nov 2026): motion, light, line, finish, planets, character, fx, env
+    for (const f of ['motion', 'light', 'line', 'finish', 'planets', 'character', 'fx', 'env']) await load('look/' + f + '.js');
+    const epb = ep.replace(/\/?$/, '/');
+    await load(epb + 'subjects.js');
+    // optional section files: build/sections/index.js sets window.SECTION_FILES = ['s03.js', ...]; each loads on its own
+    // (a broken section only loses itself)
+    await load(epb + 'sections/index.js');
+    for (const f of (window.SECTION_FILES || [])) await load(epb + 'sections/' + f);
+    for (const f of ['scenes.js', 'score.js']) await load(epb + f);
+    window.DURATION = EPISODE.duration;
+    return true;
+  })();
+  window.renderAt = (t) => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 1920, 1080); EPISODE.render(ctx, t); };
+  window.frameJPEG = (t, q = 0.93) => { renderAt(t); return document.getElementById('c').toDataURL('image/jpeg', q).slice(23); };
+})();
+</script>
+</body>
+</html>
